@@ -1,70 +1,77 @@
 <!DOCTYPE html>
 <html lang="bg">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Добавяне на артикули</title>
-<link rel="stylesheet" href="css/style.css">
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Добавяне на артикули</title>
+ <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="container">
-<header class="header">
-<h1>Добавяне на артикули</h1>
-</header>
+ <div class="container">
+ <header class="header">
+ <h1>Добавяне на артикули</h1>
+ </header>
 
-<nav class="nav-menu">
-<button class="nav-button" onclick="location.href='admin.html'">Назад</button>
-<div>
-<button class="nav-button btn-primary" onclick="addNewRow()">Добави ред</button>
-<button class="nav-button btn-success" onclick="saveAllItems()">Запази всички</button>
-</div>
-</nav>
+ <nav class="nav-menu">
+ <button class="nav-button" onclick="location.href='admin.html'">Назад</button>
+ <div>
+ <button class="nav-button btn-primary" onclick="addNewRow()">Добави ред</button>
+ <button class="nav-button btn-success" id="saveAllBtn">Запази всички</button>
+ </div>
+ </nav>
 
-<main class="main-content">
-<table id="itemsTable">
-<thead>
-<tr>
-<th>Код*</th>
-<th>Име*</th>
-<th>Позиция*</th>
-<th>Брой/пакет*</th>
-<th>Пакети*</th>
-<th>Общо</th>
-<th>Размер</th>
-<th>Действие</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><input type="text" class="item-code" required onblur="checkExistingItem(this)"></td>
-<td><input type="text" class="item-name" required></td>
-<td><input type="text" class="item-position" required></td>
-<td><input type="number" class="items-per-package" required min="1" onchange="calculateRowTotal(this)"></td>
-<td><input type="number" class="packages" required min="1" onchange="calculateRowTotal(this)"></td>
-<td><input type="number" class="total" readonly></td>
-<td>
-<select class="item-size">
-<option value="">-</option>
-<option value="XS">XS</option>
-<option value="S">S</option>
-<option value="M">M</option>
-<option value="L">L</option>
-<option value="XL">XL</option>
-<option value="XXL">XXL</option>
-<option value="XXXL">XXXL</option>
-</select>
-</td>
-<td><button class="remove-row-btn" onclick="removeRow(this)">Изтрий</button></td>
-</tr>
-</tbody>
-</table>
-</main>
+ <main class="main-content">
+ <table id="itemsTable">
+ <thead>
+ <tr>
+ <th>Код*</th>
+ <th>Име*</th>
+ <th>Позиция*</th>
+ <th>Брой/пакет*</th>
+ <th>Пакети*</th>
+ <th>Общо</th>
+ <th>Размер</th>
+ <th>Действие</th>
+ </tr>
+ </thead>
+ <tbody>
+ <!-- Редовете ще се добавят динамично -->
+ </tbody>
+ </table>
+ </main>
 
-<footer class="footer">
-&copy; 2023 Production Supplies System
-</footer>
-</div>
+ <footer class="footer">
+ &copy; 2023 Production Supplies System
+ </footer>
+ </div>
 
-<script src="js/app.js"></script>
+ <script src="js/app.js" type="module"></script>
+ <script>
+ // Локални функции за страницата
+ function addNewRow() {
+ const tbody = document.querySelector('#itemsTable tbody');
+ const newRow = document.createElement('tr');
+ newRow.innerHTML = `
+ <td><input type="text" class="item-code" required></td>
+ <td><input type="text" class="item-name" required></td>
+ <td><input type="text" class="item-position" required></td>
+ <td><input type="number" class="items-per-package" min="1" required></td>
+ <td><input type="number" class="packages" min="1" required></td>
+ <td><input type="number" class="total" readonly></td>
+ <td>
+ <select class="item-size">
+ <option value="">-</option>
+ <option value="XS">XS</option>
+ <option value="S">S</option>
+ <option value="M">M</option>
+ <option value="L">L</option>
+ <option value="XL">XL</option>
+ </select>
+ </td>
+ <td><button class="btn-danger" onclick="this.closest('tr').remove()"> </button></td>
+ `;
+ tbody.appendChild(newRow);
+ }
+ </script>
 </body>
 </html>
