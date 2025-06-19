@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Архив - Production Supplies</title>
+ <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+ <div class="container">
+ <header class="header">
+ <h1>Архив на движенията</h1>
+ </header>
+
+ <nav class="nav-menu">
+ <button class="nav-button" onclick="location.href='admin.html'">Назад</button>
+ <button class="nav-button" onclick="exportArchive('csv')">Експорт CSV</button>
+ <button class="nav-button" onclick="exportArchive('json')">Експорт JSON</button>
+ <button class="nav-button" onclick="printArchive()">Печат</button>
+ </nav>
+
+ <main class="main-content">
+ <div class="filter-box">
+ <div class="form-group">
+ <label>Филтър по дата:</label>
+ <input type="date" id="filterDate" class="form-control">
+ </div>
+ <div class="form-group">
+ <label>Филтър по действие:</label>
+ <select id="filterAction" class="form-control">
+ <option value="">Всички</option>
+ <option value="Добавяне на нов артикул">Добавяне</option>
+ <option value="Добавяне към наличност">Добавяне (към съществуващ)</option>
+ <option value="Редактиране">Редактиране</option>
+ <option value="Изтриване">Изтриване</option>
+ <option value="Извеждане">Извеждане</option>
+ </select>
+ </div>
+ <div class="form-group">
+ <label>Филтър по потребител:</label>
+ <input type="text" id="filterUser" class="form-control" placeholder="Потребител">
+ </div>
+ <button class="btn btn-primary" onclick="applyFilters()">Приложи филтри</button>
+ <button class="btn" onclick="resetFilters()">Изчисти</button>
+ </div>
+
+ <div class="table-responsive">
+ <table class="data-table" id="archiveTable">
+ <thead>
+ <tr>
+ <th>Дата/Час</th>
+ <th>Действие</th>
+ <th>Потребител</th>
+ <th>Код</th>
+ <th>Име</th>
+ <th>Количество</th>
+ <th>Позиция</th>
+ <th>Размер</th>
+ </tr>
+ </thead>
+ <tbody></tbody>
+ </table>
+ </div>
+ </main>
+
+ <footer class="footer">
+ &copy; 2023 Production Supplies System
+ </footer>
+ </div>
+
+ <script type="module">
+ import { loadArchive } from './js/api.js';
+
+ if (localStorage.getItem('isAdmin') !== 'true') {
+ window.location.href = 'index.html';
+ }
+
+ let allArchiveEntries = [];
+
+ async function loadArchiveData() {
+ try {
+ allArchiveEntries = await loadArchive();
+ displayArchive(allArchiveEntries);
+ } catch (error) {
+ console.error('Грешка:', error);
+ }
+ }
+
+ function displayArchive(entries) {
+ const tbody = document.querySelector('#archiveTable tbody');
+ tbody.innerHTML = '';
+
+ if (entries.length === 0) {
+ tbody.innerHTML = '<tr><td colspan="8">Няма архивни записи</td></tr>';
+ return;
+ }
+
+ entries.forEach(entry => {
+ const row = document.createElement('tr');
+ 
+ let quantityInfo = '-';
+ if (entry.action === 'Добавяне към наличност') {
+ quantityInfo = `+${entry.item.addedQuantity} (общо ${entry.item.newTotalQuantity})`;
+ } else if (entry.action === 'Добавяне на нов артикул') {
+ quantityInfo = `+${entry.item.total} (нов артикул)`;
+ } else if (entry.item.quantity) {
+ quantityInfo = `-${entry.item.quantity}`;
+ } else if (entry.item.total) {
+ quantityInfo = entry.item.total;
+ }
+
+ row.innerHTML = `
+ <td>${entry.date}</td>
+ <td>${entry.action}</td>
+ <td>${entry.user}</td>
+ <td>${entry.item.code}</td>
+ <td>${entry.item.name || '-'}</td>
+ <td>${quantityInfo}</td>
+ <td>${entry.item.position || '-'}</td>
+ <td>${entry.item.size || '-'}</td>
+ `;
+ tbody.appendChild(row);
+ });
+ }
+
+ function applyFilters() {
+ const dateFilter = document.getElementById('filterDate').value;
+ const actionFilter = document.getElementById('filterAction').value;
+ const userFilter = document.getElementById('filterUser').value.toLowerCase();
+
+ const filtered = allArchiveEntries.filter(entry => {
+ const matchesDate = !dateFilter || entry.date.includes(dateFilter);
+ const matchesAction = !actionFilter || entry.action.includes(actionFilter);
+ const matchesUser = !userFilter || entry.user.toLowerCase().includes(userFilter);
+
+ return matchesDate && matchesAction && matchesUser;
+ });
+
+ displayArchive(filtered);
+ }
+
+ function resetFilters() {
+ document.getElementById('filterDate').value = '';
+ document.getElementById('filterAction').value = '';
+ document.getElementById('filterUser').value = '';
+ displayArchive(allArchiveEntries);
+ }
+
+ function exportArchive(type) {
+ if (allArchiveEntries.length === 0) {
+ alert('Няма данни за експорт!');
+ return;
+ }
+
+ let data, mimeType, ext;
+
+ if (type === 'csv') {
+ const headers = ['Дата', 'Действие', 'Потребител', 'Код', 'Име', 'Количество', 'Позиция', 'Размер'];
+ const rows = allArchiveEntries.map(entry => {
+ let quantityInfo = '';
+ if (entry.action === 'Добавяне към наличност') {
+ quantityInfo = `+${entry.item.addedQuantity} (общо ${entry.item.newTotalQuantity})`;
+ } else if (entry.action === 'Добавяне на нов артикул') {
+ quantityInfo = `+${entry.item.total} (нов артикул)`;
+ } else if (entry.item.quantity) {
+ quantityInfo = `-${entry.item.quantity}`;
+ } else if (entry.item.total) {
+ quantityInfo = entry.item.total;
+ }
+
+ return [
+ `"${entry.date}"`,
+ `"${entry.action}"`,
+ `"${entry.user}"`,
+ `"${entry.item.code}"`,
+ `"${entry.item.name || ''}"`,
+ `"${quantityInfo}"`,
+ `"${entry.item.position || ''}"`,
+ `"${entry.item.size || ''}"`
+ ].join(',');
+ });
+
+ data = [headers.join(','), ...rows].join('\n');
+ mimeType = 'text/csv;charset=utf-8;';
+ ext = 'csv';
+ } else { // JSON
+ data = JSON.stringify(allArchiveEntries, null, 2);
+ mimeType = 'application/json';
+ ext = 'json';
+ }
+
+ const blob = new Blob([data], { type: mimeType });
+ const url = URL.createObjectURL(blob);
+ const link = document.createElement('a');
+ link.href = url;
+ link.download = `archive_${new Date().toISOString().slice(0,10)}.${ext}`;
+ link.click();
+ }
+
+ function printArchive() {
+ window.print();
+ }
+
+ document.addEventListener('DOMContentLoaded', loadArchiveData);
+ </script>
+</body>
+</html>

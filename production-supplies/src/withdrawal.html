@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Извеждане - Production Supplies</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.modal {
+display: none;
+position: fixed;
+z-index: 1;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0,0,0,0.4);
+}
+.modal-content {
+background-color: #fefefe;
+margin: 15% auto;
+padding: 20px;
+border: 1px solid #888;
+width: 80%;
+max-width: 500px;
+border-radius: 8px;
+}
+.admin-actions {
+display: none;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="header">
+<h1>Извеждане на артикули</h1>
+</header>
+
+<nav class="nav-menu">
+<button class="nav-button" onclick="goBack()">Назад</button>
+<button class="nav-button admin-actions" onclick="exportOutput('csv')">Експорт CSV</button>
+<button class="nav-button admin-actions" onclick="exportOutput('json')">Експорт JSON</button>
+</nav>
+
+<main class="main-content">
+<div class="search-box">
+<input type="text" id="searchOutput" class="form-control" placeholder="Търси по код, име или позиция">
+<button class="btn btn-primary" onclick="searchOutput()">Търси</button>
+<button class="btn" onclick="resetOutputSearch()">Изчисти</button>
+</div>
+
+<div class="table-responsive">
+<table class="data-table" id="outputTable">
+<thead>
+<tr>
+<th>Код</th>
+<th>Име</th>
+<th>Позиция</th>
+<th>Размер</th>
+<th>Наличност</th>
+<th>Действие</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div id="outputModal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeModal()">&times;</span>
+<h3>Извеждане на артикул</h3>
+<div class="form-group">
+<label id="outputItemInfo"></label>
+<input type="number" id="outputQuantity" class="form-control" placeholder="Количество" min="1">
+</div>
+<div id="outputUserField" class="form-group">
+<label>Вашето име (минимум 6 символа)</label>
+<input type="text" id="outputUsername" class="form-control" minlength="6">
+</div>
+<button class="btn btn-primary" onclick="confirmOutput()">Потвърди</button>
+<button class="btn" onclick="closeModal()">Отказ</button>
+</div>
+</div>
+</main>
+
+<footer class="footer">
+&copy; 2023 Production Supplies System
+</footer>
+</div>
+
+<script type="module">
+import { loadInventory, saveInventory } from './js/api.js';
+
+const isAdmin = localStorage.getItem('isAdmin') === 'true';
+let allItems = [];
+let selectedItem = null;
+
+if (!isAdmin && localStorage.getItem('isAdmin') !== 'false') {
+window.location.href = 'index.html';
+}
+
+function goBack() {
+window.location.href = isAdmin ? 'admin.html' : 'index.html';
+}
+
+async function loadItems() {
+try {
+allItems = await loadInventory();
+displayItems(allItems);
+
+if (isAdmin) {
+document.querySelectorAll('.admin-actions').forEach(el => el.style.display = 'inline-block');
+document.getElementById('outputUserField').style.display = 'none';
+}
+} catch (error) {
+console.error('Грешка при зареждане:', error);
+}
+}
+
+function displayItems(items) {
+const tbody = document.querySelector('#outputTable tbody');
+tbody.innerHTML = '';
+
+if (items.length === 0) {
+tbody.innerHTML = '<tr><td colspan="6">Няма налични артикули</td></tr>';
+return;
+}
+
+const uniqueItems = [];
+const codes = new Set();
+
+items.forEach(item => {
+if (!codes.has(item.code)) {
+codes.add(item.code);
+uniqueItems.push(item);
+}
+});
+
+uniqueItems.forEach(item => {
+const totalQty = allItems
+.filter(i => i.code === item.code)
+.reduce((sum, i) => sum + parseInt(i.total), 0);
+
+const row = document.createElement('tr');
+row.innerHTML = `
+<td>${item.code}</td>
+<td>${item.name}</td>
+<td>${item.position}</td>
+<td>${item.size || '-'}</td>
+<td>${totalQty}</td>
+<td><button class="btn btn-primary" onclick="prepareOutput('${item.code}')">Изведи</button></td>
+`;
+tbody.appendChild(row);
+});
+}
+
+function searchOutput() {
+const term = document.getElementById('searchOutput').value.toLowerCase();
+const filtered = allItems.filter(item =>
+item.code.toLowerCase().includes(term) ||
+item.name.toLowerCase().includes(term) ||
+item.position.toLowerCase().includes(term)
+);
+displayItems(filtered);
+}
+
+function resetOutputSearch() {
+document.getElementById('searchOutput').value = '';
+displayItems(allItems);
+}
+
+function prepareOutput(code) {
+selectedItem = allItems.find(item => item.code === code);
+if (!selectedItem) return;
+
+const totalAvailable = allItems
+.filter(item => item.code === code)
+.reduce((sum, item) => sum + parseInt(item.total), 0);
+
+document.getElementById('outputItemInfo').innerHTML = `
+<strong>${selectedItem.code} - ${selectedItem.name}</strong><br>
+<small>Позиция: ${selectedItem.position} | Размер: ${selectedItem.size || 'няма'}</small>
+`;
+
+document.getElementById('outputQuantity').value = 1;
+document.getElementById('outputQuantity').max = totalAvailable;
+document.getElementById('outputModal').style.display = 'block';
+}
+
+function closeModal() {
+document.getElementById('outputModal').style.display = 'none';
+}
+
+async function confirmOutput() {
+const quantity = parseInt(document.getElementById('outputQuantity').value);
+const username = isAdmin ? 'admin' : document.getElementById('outputUsername').value.trim();
+
+if (!quantity || quantity <= 0) {
+alert("Моля въведете валидно количество!");
+return;
+}
+
+if (!isAdmin && (!username || username.length < 6)) {
+alert("Името трябва да е поне 6 символа!");
+return;
+}
+
+const items = await loadInventory();
+const totalAvailable = items
+.filter(item => item.code === selectedItem.code)
+.reduce((sum, item) => sum + parseInt(item.total), 0);
+
+if (quantity > totalAvailable) {
+alert(`Няма достатъчна наличност! Налични: ${totalAvailable}`);
+return;
+}
+
+try {
+let remainingQty = quantity;
+const updatedItems = items.map(item => {
+if (item.code === selectedItem.code) {
+const deduct = Math.min(remainingQty, item.total);
+remainingQty -= deduct;
+return {
+...item,
+total: item.total - deduct,
+packages: Math.floor((item.total - deduct) / item.itemsPerPackage)
+};
+}
+return item;
+}).filter(item => item.total > 0);
+
+const archiveEntry = {
+action: 'Извеждане',
+user: isAdmin ? 'admin' : username,
+date: new Date().toLocaleString(),
+item: {
+code: selectedItem.code,
+name: selectedItem.name,
+position: selectedItem.position,
+size: selectedItem.size,
+quantity: quantity,
+remaining: totalAvailable - quantity
+}
+};
+
+await saveInventory(updatedItems, [archiveEntry]);
+alert(`Успешно извеждане на ${quantity} бр. от артикул ${selectedItem.code}`);
+closeModal();
+loadItems();
+} catch (error) {
+alert('Грешка при извеждане: ' + error.message);
+}
+}
+
+function exportOutput(type) {
+const items = allItems;
+if (items.length === 0) {
+alert('Няма данни за експорт!');
+return;
+}
+
+let data, mimeType, ext;
+
+if (type === 'csv') {
+const headers = ['Код', 'Име', 'Позиция', 'Размер', 'Наличност'];
+const rows = items.map(item => [
+`"${item.code}"`,
+`"${item.name}"`,
+`"${item.position}"`,
+`"${item.size || ''}"`,
+item.total
+].join(','));
+
+data = [headers.join(','), ...rows].join('\n');
+mimeType = 'text/csv;charset=utf-8;';
+ext = 'csv';
+} else { // JSON
+data = JSON.stringify(items, null, 2);
+mimeType = 'application/json';
+ext = 'json';
+}
+
+const blob = new Blob([data], { type: mimeType });
+const url = URL.createObjectURL(blob);
+const link = document.createElement('a');
+link.href = url;
+link.download = `output_${new Date().toISOString().slice(0,10)}.${ext}`;
+link.click();
+}
+
+document.addEventListener('DOMContentLoaded', loadItems);
+</script>
+</body>
+</html>

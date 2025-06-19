@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Production Supplies</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+<header class="header">
+<h1>Production Supplies System</h1>
+</header>
+
+<main class="main-content">
+<div class="login-form">
+<h2>Вход в системата</h2>
+<input type="password" id="adminPassword" placeholder="Администраторска парола">
+<button onclick="login()">Вход</button>
+</div>
+</main>
+
+<footer class="footer">
+&copy; 2023 Production Supplies System
+</footer>
+</div>
+
+<script>
+function login() {
+const password = document.getElementById('adminPassword').value;
+if (password === "admin123") { // Заменете с реална парола
+localStorage.setItem('isAdmin', 'true');
+window.location.href = 'admin.html';
+} else {
+alert('Грешна парола!');
+}
+}
+</script>
+</body>
+</html>

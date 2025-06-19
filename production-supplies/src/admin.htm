@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Админ - Production Supplies</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+<header class="header">
+<h1>Администраторски панел</h1>
+</header>
+
+<nav class="nav-menu">
+<button class="nav-button" onclick="location.href='add.html'">Добави артикули</button>
+<button class="nav-button" onclick="location.href='inventory.html'">Складова наличност</button>
+<button class="nav-button" onclick="location.href='withdrawal.html'">Извеждане</button>
+<button class="nav-button" onclick="location.href='archive.html'">Архив</button>
+<button class="nav-button" onclick="logout()">Изход</button>
+</nav>
+
+<main class="main-content">
+<div class="dashboard">
+<div class="dashboard-card">
+<h3>Бързи действия</h3>
+<button class="btn" onclick="location.href='add.html'">Добави нов артикул</button>
+<button class="btn" onclick="location.href='inventory.html'">Провери наличност</button>
+</div>
+<div class="dashboard-card">
+<h3>Статистика</h3>
+<div id="stats"></div>
+</div>
+</div>
+</main>
+
+<footer class="footer">
+&copy; 2023 Production Supplies System
+</footer>
+</div>
+
+<script type="module">
+import { loadInventory, loadArchive } from './js/api.js';
+
+if (localStorage.getItem('isAdmin') !== 'true') {
+window.location.href = 'index.html';
+}
+
+async function updateStats() {
+const items = await loadInventory();
+const archive = await loadArchive();
+
+document.getElementById('stats').innerHTML = `
+<p>Общо артикули: ${items.length}</p>
+<p>Общо движения: ${archive.length}</p>
+<p>Последна активност: ${new Date().toLocaleString()}</p>
+`;
+}
+
+function logout() {
+localStorage.removeItem('isAdmin');
+window.location.href = 'index.html';
+}
+
+document.addEventListener('DOMContentLoaded', updateStats);
+</script>
+</body>
+</html>

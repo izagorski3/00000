@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Редактиране - Production Supplies</title>
+ <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+ <div class="container">
+ <header class="header">
+ <h1>Редактиране на артикул</h1>
+ </header>
+
+ <nav class="nav-menu">
+ <button class="nav-button" onclick="location.href='inventory.html'">Назад</button>
+ <button class="nav-button btn-primary" onclick="saveChanges()">Запази промените</button>
+ </nav>
+
+ <main class="main-content">
+ <div class="form-group">
+ <label>Код на артикула</label>
+ <input type="text" id="editCode" class="form-control" readonly>
+ </div>
+ <div class="form-group">
+ <label>Име на артикула*</label>
+ <input type="text" id="editName" class="form-control" required>
+ </div>
+ <div class="form-group">
+ <label>Позиция в склада*</label>
+ <input type="text" id="editPosition" class="form-control" required>
+ </div>
+ <div class="form-group">
+ <label>Брой на пакет*</label>
+ <input type="number" id="editItemsPerPackage" class="form-control" min="1" required>
+ </div>
+ <div class="form-group">
+ <label>Размер</label>
+ <select id="editSize" class="form-control">
+ <option value="">-</option>
+ <option value="XS">XS</option>
+ <option value="S">S</option>
+ <option value="M">M</option>
+ <option value="L">L</option>
+ <option value="XL">XL</option>
+ <option value="XXL">XXL</option>
+ <option value="XXXL">XXXL</option>
+ </select>
+ </div>
+ </main>
+
+ <footer class="footer">
+ &copy; 2023 Production Supplies System
+ </footer>
+ </div>
+
+ <script type="module">
+ import { loadInventory, saveInventory } from './js/api.js';
+
+ if (localStorage.getItem('isAdmin') !== 'true') {
+ window.location.href = 'index.html';
+ }
+
+ const itemCode = localStorage.getItem('editItemCode');
+ if (!itemCode) {
+ window.location.href = 'inventory.html';
+ }
+
+ async function loadItemData() {
+ try {
+ const items = await loadInventory();
+ const item = items.find(i => i.code === itemCode);
+ 
+ if (!item) {
+ alert('Артикулът не е намерен!');
+ window.location.href = 'inventory.html';
+ return;
+ }
+
+ document.getElementById('editCode').value = item.code;
+ document.getElementById('editName').value = item.name;
+ document.getElementById('editPosition').value = item.position;
+ document.getElementById('editItemsPerPackage').value = item.itemsPerPackage;
+ document.getElementById('editSize').value = item.size || '';
+ } catch (error) {
+ console.error('Грешка:', error);
+ alert('Неуспешно зареждане на данни');
+ }
+ }
+
+ async function saveChanges() {
+ const name = document.getElementById('editName').value;
+ const position = document.getElementById('editPosition').value;
+ const itemsPerPackage = document.getElementById('editItemsPerPackage').value;
+ const size = document.getElementById('editSize').value;
+
+ if (!name || !position || !itemsPerPackage) {
+ alert('Моля попълнете всички задължителни полета!');
+ return;
+ }
+
+ try {
+ const items = await loadInventory();
+ const itemIndex = items.findIndex(i => i.code === itemCode);
+ 
+ if (itemIndex === -1) {
+ alert('Артикулът не е намерен!');
+ return;
+ }
+
+ const updatedItem = {
+ ...items[itemIndex],
+ name,
+ position,
+ itemsPerPackage: parseInt(itemsPerPackage),
+ size: size || ''
+ };
+
+ items[itemIndex] = updatedItem;
+
+ const archiveEntry = {
+ action: 'Редактиране',
+ user: 'admin',
+ date: new Date().toLocaleString(),
+ item: {
+ code: itemCode,
+ name,
+ position,
+ size
+ }
+ };
+
+ await saveInventory(items, [archiveEntry]);
+ alert('Промените са запазени успешно!');
+ window.location.href = 'inventory.html';
+ } catch (error) {
+ alert('Грешка при запазване: ' + error.message);
+ }
+ }
+
+ document.addEventListener('DOMContentLoaded', loadItemData);
+ </script>
+</body>
+</html>

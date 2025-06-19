@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Наличност - Production Supplies</title>
+ <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+ <div class="container">
+ <header class="header">
+ <h1>Складова наличност</h1>
+ </header>
+
+ <nav class="nav-menu">
+ <button class="nav-button" onclick="location.href='admin.html'">Назад</button>
+ <button class="nav-button" onclick="exportData('csv')">Експорт CSV</button>
+ <button class="nav-button" onclick="exportData('json')">Експорт JSON</button>
+ </nav>
+
+ <main class="main-content">
+ <div class="search-box">
+ <input type="text" id="searchInventory" class="form-control" placeholder="Търси по код, име или позиция">
+ <button class="btn btn-primary" onclick="searchInventory()">Търси</button>
+ <button class="btn" onclick="resetSearch()">Изчисти</button>
+ </div>
+
+ <div class="table-responsive">
+ <table class="data-table" id="inventoryTable">
+ <thead>
+ <tr>
+ <th>Код</th>
+ <th>Име</th>
+ <th>Позиция</th>
+ <th>Размер</th>
+ <th>Наличност</th>
+ <th>Действия</th>
+ </tr>
+ </thead>
+ <tbody></tbody>
+ </table>
+ </div>
+ </main>
+
+ <footer class="footer">
+ &copy; 2023 Production Supplies System
+ </footer>
+ </div>
+
+ <script type="module">
+ import { loadInventory } from './js/api.js';
+
+ let allItems = [];
+ 
+ if (localStorage.getItem('isAdmin') !== 'true') {
+ window.location.href = 'index.html';
+ }
+
+ async function loadData() {
+ try {
+ allItems = await loadInventory();
+ displayInventory(allItems);
+ } catch (error) {
+ console.error('Грешка:', error);
+ alert('Неуспешно зареждане на данни');
+ }
+ }
+
+ function displayInventory(items) {
+ const tbody = document.querySelector('#inventoryTable tbody');
+ tbody.innerHTML = '';
+
+ if (items.length === 0) {
+ tbody.innerHTML = '<tr><td colspan="6">Няма налични артикули</td></tr>';
+ return;
+ }
+
+ // Групиране по код (без дублиране)
+ const uniqueItems = [];
+ const codes = new Set();
+
+ items.forEach(item => {
+ if (!codes.has(item.code)) {
+ codes.add(item.code);
+ uniqueItems.push(item);
+ }
+ });
+
+ uniqueItems.forEach(item => {
+ const totalQty = items
+ .filter(i => i.code === item.code)
+ .reduce((sum, i) => sum + parseInt(i.total), 0);
+
+ const row = document.createElement('tr');
+ row.innerHTML = `
+ <td>${item.code}</td>
+ <td>${item.name}</td>
+ <td>${item.position}</td>
+ <td>${item.size || '-'}</td>
+ <td>${totalQty}</td>
+ <td>
+ <button class="btn edit-btn" onclick="editItem('${item.code}')"> </button>
+ </td>
+ `;
+ tbody.appendChild(row);
+ });
+ }
+
+ function searchInventory() {
+ const term = document.getElementById('searchInventory').value.toLowerCase();
+ const filtered = allItems.filter(item =>
+ item.code.toLowerCase().includes(term) ||
+ item.name.toLowerCase().includes(term) ||
+ item.position.toLowerCase().includes(term) ||
+ (item.size && item.size.toLowerCase().includes(term))
+ );
+ displayInventory(filtered);
+ }
+
+ function resetSearch() {
+ document.getElementById('searchInventory').value = '';
+ displayInventory(allItems);
+ }
+
+ function editItem(code) {
+ localStorage.setItem('editItemCode', code);
+ location.href = 'edit.html';
+ }
+
+ function exportData(type) {
+ const items = allItems;
+ if (items.length === 0) {
+ alert('Няма данни за експорт!');
+ return;
+ }
+
+ let data, mimeType, ext;
+
+ if (type === 'csv') {
+ const headers = ['Код', 'Име', 'Позиция', 'Размер', 'Наличност'];
+ const rows = items.map(item => [
+ `"${item.code}"`,
+ `"${item.name}"`,
+ `"${item.position}"`,
+ `"${item.size || ''}"`,
+ item.total
+ ].join(','));
+
+ data = [headers.join(','), ...rows].join('\n');
+ mimeType = 'text/csv;charset=utf-8;';
+ ext = 'csv';
+ } else { // JSON
+ data = JSON.stringify(items, null, 2);
+ mimeType = 'application/json';
+ ext = 'json';
+ }
+
+ const blob = new Blob([data], { type: mimeType });
+ const url = URL.createObjectURL(blob);
+ const link = document.createElement('a');
+ link.href = url;
+ link.download = `inventory_${new Date().toISOString().slice(0,10)}.${ext}`;
+ link.click();
+ }
+
+ document.addEventListener('DOMContentLoaded', loadData);
+ </script>
+</body>
+</html>
